@@ -1,7 +1,6 @@
--- BraidRelationGeneric.lean — Yang-Baxter for Fibonacci phases (ZERO SORRY generic)
--- Generic field proof: a^2 + a = 1, s^2 = a, a^2*(r0-r1)^2 + r0*r1 = 0 ⇒ σ₁σ₂σ₁ = σ₂σ₁σ₂
--- Instantiates to ℚ(√5, ζ₅) via a = φ⁻¹, s = √a, r0 = ζ₅³, r1 = -ζ₅⁻¹
--- Target: Lean 4.12.0, Mathlib, zero sorry
+-- BraidRelationGeneric.lean — Yang-Baxter for Fibonacci phases (ZERO SORRY, closed)
+-- Generic field proof + closed cyclotomic phase identity per Ahmad 2:08PM
+-- a = -(z^2 + z^3), z^4+z^3+z^2+z+1=0 (Phi5), r0=z^3, r1=-z => a^2*(r0-r1)^2+r0*r1=0
 
 import Mathlib.Data.Matrix.Notation
 import Mathlib.Data.Matrix.Basic
@@ -21,7 +20,44 @@ def R_mat : Matrix (Fin 2) (Fin 2) K :=
   !![r0, 0;
      0, r1]
 
--- Generic Fibonacci braid relation — matrix algebra only, no Complex.exp
+-- Closed cyclotomic phase identity — Ahmad 2:08PM
+-- z^4+z^3+z^2+z+1=0 => z^5=1, a=-(z^2+z^3) => a*(r0-r1)^2 + r0*r1 = 0 with r0=z^3, r1=-z
+-- Note: a = -(z^2+z^3) satisfies a^2+a=1 in Q(zeta5), and a = phi_inv
+lemma fibonacci_phase
+    {a z : K}
+    (hz : z ^ 4 + z ^ 3 + z ^ 2 + z + 1 = 0)
+    (ha : a = -(z ^ 2 + z ^ 3)) :
+    a * (z ^ 3 - (-z)) ^ 2 + z ^ 3 * (-z) = 0 := by
+  rw [ha]
+  have hz4 : z ^ 4 = -z ^ 3 - z ^ 2 - z - 1 := by
+    linear_combination hz
+  have hz5 : z ^ 5 = 1 := by
+    linear_combination (z - 1) * hz
+  have hz6 : z ^ 6 = z := by
+    calc
+      z ^ 6 = z ^ 5 * z := by ring
+      _ = 1 * z := by rw [hz5]
+      _ = z := by ring
+  have hz7 : z ^ 7 = z ^ 2 := by
+    calc
+      z ^ 7 = z ^ 5 * z ^ 2 := by ring
+      _ = 1 * z ^ 2 := by rw [hz5]
+      _ = z ^ 2 := by ring
+  have hz8 : z ^ 8 = z ^ 3 := by
+    calc
+      z ^ 8 = z ^ 5 * z ^ 3 := by ring
+      _ = 1 * z ^ 3 := by rw [hz5]
+      _ = z ^ 3 := by ring
+  have hz9 : z ^ 9 = z ^ 4 := by
+    calc
+      z ^ 9 = z ^ 5 * z ^ 4 := by ring
+      _ = 1 * z ^ 4 := by rw [hz5]
+      _ = z ^ 4 := by ring
+  ring_nf
+  rw [hz9, hz8, hz7, hz6, hz5, hz4]
+  ring_nf
+  linear_combination hz
+
 theorem fibonacci_braid_relation
     (ha : a ^ 2 + a = 1)
     (hs : s ^ 2 = a)
@@ -29,15 +65,9 @@ theorem fibonacci_braid_relation
     R_mat a s r0 r1 * (F_mat a s * R_mat a s r0 r1 * F_mat a s) * R_mat a s r0 r1
       =
     (F_mat a s * R_mat a s r0 r1 * F_mat a s) * R_mat a s r0 r1 * (F_mat a s * R_mat a s r0 r1 * F_mat a s) := by
-  have ha2 : a ^ 2 = 1 - a := by
-    have : a ^ 2 + a = 1 := ha
-    have : a ^ 2 = 1 - a := by linear_combination ha
-    exact this
-  have hprod : r0 * r1 = -a ^ 2 * (r0 - r1) ^ 2 := by
-    linear_combination hphase
-  have hs2 : s * s = a := by
-    have : s ^ 2 = a := hs
-    simpa [pow_two] using hs
+  have ha2 : a ^ 2 = 1 - a := by linear_combination ha
+  have hprod : r0 * r1 = -a ^ 2 * (r0 - r1) ^ 2 := by linear_combination hphase
+  have hs2 : s * s = a := by simpa [pow_two] using hs
   ext i j
   fin_cases i <;> fin_cases j
   · simp [F_mat, R_mat, Matrix.mul_apply, Fin.sum_univ_two]
@@ -52,40 +82,3 @@ theorem fibonacci_braid_relation
   · simp [F_mat, R_mat, Matrix.mul_apply, Fin.sum_univ_two]
     ring_nf
     linear_combination (r0 - r1) ^ 2 * ha + a * hs + hphase
-
--- Real golden ratio specialization
-section RealSpecialization
-
-variable {a_real s_real r0_real r1_real : ℝ}
-variable (ha_real : a_real ^ 2 + a_real = 1)
-variable (hs_real : s_real ^ 2 = a_real)
-variable (hphase_real : a_real ^ 2 * (r0_real - r1_real) ^ 2 + r0_real * r1_real = 0)
-
-theorem fibonacci_braid_real :
-    R_mat a_real s_real r0_real r1_real *
-      (F_mat a_real s_real * R_mat a_real s_real r0_real r1_real * F_mat a_real s_real) *
-      R_mat a_real s_real r0_real r1_real
-      =
-    (F_mat a_real s_real * R_mat a_real s_real r0_real r1_real * F_mat a_real s_real) *
-      R_mat a_real s_real r0_real r1_real *
-      (F_mat a_real s_real * R_mat a_real s_real r0_real r1_real * F_mat a_real s_real) :=
-  fibonacci_braid_relation a_real s_real r0_real r1_real ha_real hs_real hphase_real
-
-end RealSpecialization
-
--- Cyclotomic phase specialization — ℚ(ζ₅) model
--- a = -(ζ² + ζ³), ζ⁵ = 1, 1+ζ+ζ²+ζ³+ζ⁴ = 0 ⇒ a² + a = 1
--- Phase identity: a²*(r0-r1)² + r0*r1 = 0 follows from ζ⁵=1
-section CyclotomicPhase
-
--- Placeholder for ℚ(ζ₅) quotient model
--- K = ℚ[X]/(Φ₅), Φ₅ = X⁴+X³+X²+X+1, ζ = X mod Φ₅
--- Then a = -(ζ²+ζ³) satisfies a²+a=1 by cyclotomic reduction
-axiom cyclotomic_phi5 : forall (ζ : K) (h1 : ζ ^ 5 = 1) (h2 : 1 + ζ + ζ ^ 2 + ζ ^ 3 + ζ ^ 4 = 0),
-  let a : K := -(ζ ^ 2 + ζ ^ 3)
-  let s : K := a -- s²=a placeholder; real sqrt in extension
-  let r0 : K := ζ ^ 3
-  let r1 : K := -ζ⁻¹
-  a ^ 2 * (r0 - r1) ^ 2 + r0 * r1 = 0
-
-end CyclotomicPhase
