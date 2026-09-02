@@ -1,0 +1,9 @@
+*.o
+*.bin
+*.bit
+*.jou
+*.log
+build/
+__pycache__/
+.lake/
+dist-newstyle/
